@@ -3,10 +3,8 @@ import axios from 'axios';
 
 const AuthContext = createContext();
 
-// Export the context separately
 export { AuthContext };
 
-// Only export the component as default
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,9 +12,11 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const initAuth = () => {
       const token = localStorage.getItem('token');
-      if (token) {
+      const userData = localStorage.getItem('user');
+      
+      if (token && userData) {
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        setUser({ token });
+        setUser(JSON.parse(userData));
       }
       setLoading(false);
     };
@@ -29,6 +29,7 @@ export function AuthProvider({ children }) {
     const { token, user } = response.data;
     
     localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));  // Save user data
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(user);
     
@@ -40,6 +41,7 @@ export function AuthProvider({ children }) {
     const { token, user } = response.data;
     
     localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));  // Save user data
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(user);
     
@@ -48,6 +50,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');  // Remove user data
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   };

@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check password
+    // Check password using the schema method
     const isMatch = await user.comparePassword(password);
     
     if (!isMatch) {
@@ -94,6 +94,31 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Test route - GET all users (add at the bottom, before module.exports)
+router.get('/users', async (req, res) => {
+  try {
+    const users = await User.find({}).select('-password'); // Don't send passwords
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching users' });
+  }
+});
+
+
+// DELETE all users - ONLY FOR DEVELOPMENT!
+router.delete('/delete-all-users', async (req, res) => {
+  try {
+    const result = await User.deleteMany({});
+    res.json({ 
+      message: 'All users deleted',
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ message: 'Error deleting users' });
   }
 });
 
