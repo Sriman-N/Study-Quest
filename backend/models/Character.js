@@ -50,8 +50,13 @@ const characterSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  }, 
+  gold: {
+  type: Number,
+  default: 0
   }
 });
+
 
 // Method to calculate XP needed for next level
 characterSchema.methods.getXPForNextLevel = function() {
@@ -59,14 +64,29 @@ characterSchema.methods.getXPForNextLevel = function() {
   return Math.floor(100 * Math.pow(1.5, this.level - 1));
 };
 
+characterSchema.methods.addGold = function(amount) {
+  this.gold += amount;
+  return this.gold;
+};
+
+characterSchema.methods.spendGold = function(amount) {
+  if (this.gold >= amount) {
+    this.gold -= amount;
+    return true;
+  }
+  return false;
+};
+
 // Method to add XP and handle level ups
 characterSchema.methods.addXP = function(amount) {
   this.xp += amount;
   
-  let leveledUp = false;
+  let leveledUp = false; 
+  const levelsGained = [];
   
   while (this.xp >= this.getXPForNextLevel()) {
-    this.xp -= this.getXPForNextLevel();
+    const xpNeeded = this.getXPForNextLevel();
+    this.xp -= xpNeeded;
     this.level += 1;
     
     // Increase stats on level up
@@ -74,10 +94,16 @@ characterSchema.methods.addXP = function(amount) {
     this.stats.knowledge += 1;
     this.stats.discipline += 1;
     
+    levelsGained.push(this.level);
     leveledUp = true;
   }
   
-  return { character: this, leveledUp };
+  return { 
+    character: this, 
+    leveledUp,
+    levelsGained,
+    newLevel: this.level
+  };
 };
 
 module.exports = mongoose.model('Character', characterSchema);

@@ -2,6 +2,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const dailyChallengesRouter = require('./routes/dailyChallenges');
+const studyMaterialsRouter = require('./routes/studyMaterials');
 
 dotenv.config();
 
@@ -24,6 +26,14 @@ app.get('/', (req, res) => {
 app.use('/api/auth', require('./routes/auth'))
 
 app.use('/api/characters', require('./routes/characters'));
+
+app.use('/api/sessions', require('./routes/sessions'));
+
+app.use('/api/achievements', require('./routes/achievements'));
+
+app.use('/api/daily-challenges', dailyChallengesRouter);
+
+app.use('/api/study-materials', studyMaterialsRouter);
 
 const PORT = process.env.PORT || 5000;
 

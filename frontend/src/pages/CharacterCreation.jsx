@@ -34,7 +34,7 @@ const CharacterCreation = () => {
 
   try {    
     await axios.post('/api/characters', {
-      userId: user.id,  // Try both id and _id
+      userId: user.id, 
       name: characterName,
       avatar: selectedAvatar
     });

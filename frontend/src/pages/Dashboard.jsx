@@ -1,28 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import axios from 'axios';
+import StudyTimer from '../components/StudyTimer';
+import SessionHistory from '../components/SessionHistory';
+import StudyStats from '../components/StudyStats';
+import Achievements from '../components/Achievements';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const [character, setCharacter] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchCharacter = async () => {
-      try {
-        const response = await axios.get(`/api/characters/user/${user.id}`);
-        setCharacter(response.data);
-      } catch (error) {
-        console.error('Error fetching character:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchCharacter = async () => {
+    try {
+      const response = await axios.get(`/api/characters/user/${user.id}`);
+      setCharacter(response.data);
+    } catch (error) {
+      console.error('Error fetching character:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (user?.id) {
       fetchCharacter();
     }
   }, [user]);
+
+  const handleSessionComplete = () => {
+    fetchCharacter();
+  };
 
   if (loading) {
     return (
@@ -119,22 +127,32 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Feature Sections */}
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-            <h3 className="text-2xl font-bold text-white mb-4">📚 Study Timer</h3>
-            <p className="text-gray-300 mb-4">Start a study session to earn XP and level up!</p>
-            <button className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors">
-              Coming Soon!
-            </button>
-          </div>
-          
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-            <h3 className="text-2xl font-bold text-white mb-4">🎯 Active Quests</h3>
-            <p className="text-gray-300">Complete quests to boost your stats!</p>
-            <p className="text-gray-400 text-sm mt-2">No active quests yet...</p>
-          </div>
+        {/* Study Timer */}
+        <div className="mb-6">
+          <StudyTimer 
+            user={user} 
+            character={character}
+            onSessionComplete={handleSessionComplete}
+          />
         </div>
+
+        {/* Study Statistics */}
+        <div className="mb-6">
+          <StudyStats userId={user.id} />
+        </div>
+
+        {/* Session History */}
+        <div className="mb-6">
+          <SessionHistory userId={user.id} />
+        </div>
+
+        {/* Achievements */}
+        <div className="mb-6">
+          <Achievements userId={user.id} />
+        </div>
+
+        {/* Active Quests - Coming Soon */}
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"></div>
       </div>
     </div>
   );
