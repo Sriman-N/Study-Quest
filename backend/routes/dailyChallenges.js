@@ -4,10 +4,10 @@ const auth = require('../middleware/auth');
 const DailyChallenge = require('../models/DailyChallenge');
 const StudyMaterial = require('../models/StudyMaterial');
 const Character = require('../models/Character');
-const Anthropic = require('@anthropic-ai/sdk');
+const OpenAI = require('openai');
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 // Get active daily challenges
@@ -44,12 +44,11 @@ router.post('/generate-quiz', auth, async (req, res) => {
     const combinedText = materials.map(m => m.extractedText).join('\n\n');
     const subject = materials[0].subject;
 
-    // Generate quiz using Claude
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
+    // Generate quiz using OpenAI
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
       messages: [{
-        role: 'user',
+        role: "user",
         content: `Based on the following lecture material, create a ${difficulty} difficulty quiz with 5 multiple-choice questions. Each question should have 4 options and test understanding of key concepts.
 
 Study Material:
@@ -68,11 +67,15 @@ Please respond ONLY with valid JSON in this exact format (no markdown, no extra 
 }
 
 The correctAnswer should be the index (0-3) of the correct option.`
-      }]
+      }],
+      temperature: 0.7,
     });
 
-    const responseText = message.content[0].text;
-    const quizData = JSON.parse(responseText);
+    const responseText = completion.choices[0].message.content;
+    
+    // Remove markdown code blocks if present
+    const cleanedResponse = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const quizData = JSON.parse(cleanedResponse);
 
     // Calculate rewards based on difficulty
     const rewards = {
@@ -105,7 +108,7 @@ The correctAnswer should be the index (0-3) of the correct option.`
     res.json(challenge);
   } catch (error) {
     console.error('Quiz generation error:', error);
-    res.status(500).json({ message: 'Failed to generate quiz' });
+    res.status(500).json({ message: 'Failed to generate quiz', error: error.message });
   }
 });
 
