@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
+
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import LevelUpModal from './LevelUpModal';
@@ -20,19 +20,23 @@ const StudyTimer = ({ user, character, onSessionComplete }) => {
   const [showAchievementModal, setShowAchievementModal] = useState(false);
   const [unlockedAchievements, setUnlockedAchievements] = useState([]);
 
-  useEffect(() => {
-    if (isActive && timeLeft > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimeLeft(time => time - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && isActive) {
-      setIsActive(false);
-      setTimerComplete(true);
-    }
-
-    return () => clearInterval(intervalRef.current);
-  }, [isActive, timeLeft]);
-
+useEffect(() => {
+  if (isActive && timeLeft > 0) {
+    intervalRef.current = setInterval(() => {
+      setTimeLeft(time => {
+        if (time <= 1) {
+          // Timer is about to hit 0
+          setIsActive(false);
+          setTimerComplete(true);
+          return 0;
+        }
+        return time - 1;
+      });
+    }, 1000);
+  }
+  
+  return () => clearInterval(intervalRef.current);
+}, [isActive, timeLeft]);
   useEffect(() => {
     if (!timerComplete) return;
 
