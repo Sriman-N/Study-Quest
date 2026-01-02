@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import axios from 'axios';
 
 const Login = () => {
@@ -9,6 +10,7 @@ const Login = () => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -24,31 +26,35 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', formData);
-
-      // Save token
-      localStorage.setItem('token', response.data.token);
-
-      // Check if user has a character
+      await login(formData.email, formData.password);
+      
+      // Check if character exists
+      const token = localStorage.getItem('token');
+      console.log('Checking for character with token:', token ? 'exists' : 'missing');
+      
       try {
-        const token = response.data.token;
-        const characterResponse = await axios.get('http://localhost:5000/api/characters', {
+        const response = await axios.get('http://localhost:5000/api/characters', {
           headers: { Authorization: `Bearer ${token}` }
         });
-
-        // If character exists, go to dashboard
-        if (characterResponse.data) {
-          navigate('/dashboard');
-        }
+        
+        console.log('Character found:', response.data);
+        // Character exists, go to dashboard
+        navigate('/dashboard');
       } catch (err) {
-        // If character doesn't exist (404), go to character creation
+        console.log('Character check error:', err.response?.status, err.response?.data);
+        
+        // Only redirect to character creation if specifically 404 (no character)
         if (err.response?.status === 404) {
+          console.log('No character found, redirecting to creation');
           navigate('/create-character');
         } else {
-          throw err;
+          console.log('Other error, going to dashboard anyway');
+          // For any other error, still try to go to dashboard
+          navigate('/dashboard');
         }
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError(err.response?.data?.message || 'Login failed');
       setLoading(false);
     }

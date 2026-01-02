@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import axios from 'axios';
 import StudyTimer from '../components/StudyTimer';
 import SessionHistory from '../components/SessionHistory';
@@ -9,30 +8,53 @@ import Achievements from '../components/Achievements';
 import { BookOpen } from 'lucide-react';
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [character, setCharacter] = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchCharacter = async () => {
+  useEffect(() => {
+    fetchUserAndCharacter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchUserAndCharacter = async () => {
     try {
-      const response = await axios.get(`/api/characters/user/${user.id}`);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      // Fetch character
+      const response = await axios.get('http://localhost:5000/api/characters', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
       setCharacter(response.data);
+      
+      // Set a basic user object from token (you can decode JWT if needed)
+      setUser({ id: response.data.userId });
+      
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching character:', error);
-    } finally {
+      if (error.response?.status === 401) {
+        navigate('/login');
+      } else if (error.response?.status === 404) {
+        navigate('/create-character');
+      }
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (user?.id) {
-      fetchCharacter();
-    }
-  }, [user]);
-
   const handleSessionComplete = () => {
-    fetchCharacter();
+    fetchUserAndCharacter();
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
   };
 
   if (loading) {
@@ -55,19 +77,32 @@ const Dashboard = () => {
     warrior: '⚔️',
     mage: '🧙',
     scholar: '📚',
-    ninja: '🥷'
+    ninja: '🥷',
+    // Add new avatars from shop
+    dragon: '🐉',
+    wizard: '🧙‍♂️',
+    robot: '🤖',
+    alien: '👽',
+    knight: '🛡️',
+    pirate: '🏴‍☠️'
   };
 
   const xpForNextLevel = Math.floor(100 * Math.pow(1.5, character.level - 1));
   const xpPercentage = (character.xp / xpForNextLevel) * 100;
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-8 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-white">Study Quest</h1>
           <div className="flex gap-4">
+            <button
+              onClick={() => navigate('/shop')}
+              className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
+            >
+              🛒 Shop
+            </button>
             <button
               onClick={() => navigate('/study-materials')}
               className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
@@ -88,7 +123,7 @@ const Dashboard = () => {
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 mb-6 border border-white/20">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
-              <div className="text-7xl">{avatarEmojis[character.avatar]}</div>
+              <div className="text-7xl">{avatarEmojis[character.avatar] || '⚔️'}</div>
               <div>
                 <h2 className="text-4xl font-bold text-white mb-1">
                   {character.name}
@@ -98,9 +133,15 @@ const Dashboard = () => {
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-gray-300 text-sm">Total Study Time</div>
-              <div className="text-white text-2xl font-bold">{character.totalStudyTime} min</div>
+            <div className="text-right space-y-2">
+              <div>
+                <div className="text-gray-300 text-sm">Gold</div>
+                <div className="text-yellow-400 text-2xl font-bold">💰 {character.gold || 0}</div>
+              </div>
+              <div>
+                <div className="text-gray-300 text-sm">Total Study Time</div>
+                <div className="text-white text-2xl font-bold">{character.totalStudyTime} min</div>
+              </div>
             </div>
           </div>
           
@@ -150,21 +191,18 @@ const Dashboard = () => {
 
         {/* Study Statistics */}
         <div className="mb-6">
-          <StudyStats userId={user.id} />
+          <StudyStats userId={user?.id} />
         </div>
 
         {/* Session History */}
         <div className="mb-6">
-          <SessionHistory userId={user.id} />
+          <SessionHistory userId={user?.id} />
         </div>
 
         {/* Achievements */}
         <div className="mb-6">
-          <Achievements userId={user.id} />
+          <Achievements userId={user?.id} />
         </div>
-
-        {/* Active Quests - Coming Soon */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"></div>
       </div>
     </div>
   );

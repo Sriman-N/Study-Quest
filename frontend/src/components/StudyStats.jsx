@@ -8,23 +8,23 @@ const StudyStats = ({ userId }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
-  }, [userId]);
+    const fetchData = async () => {
+      try {
+        const [statsRes, sessionsRes] = await Promise.all([
+          axios.get(`/api/sessions/stats/${userId}`),
+          axios.get(`/api/sessions/user/${userId}`)
+        ]);
+        setStats(statsRes.data);
+        setSessions(sessionsRes.data);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchData = async () => {
-    try {
-      const [statsRes, sessionsRes] = await Promise.all([
-        axios.get(`/api/sessions/stats/${userId}`),
-        axios.get(`/api/sessions/user/${userId}`)
-      ]);
-      setStats(statsRes.data);
-      setSessions(sessionsRes.data);
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  fetchData();
+}, [userId]);
 
   const getWeeklyData = () => {
     const last7Days = [];
@@ -235,7 +235,30 @@ const StudyStats = ({ userId }) => {
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ percentage }) => `${percentage}%`}
+                    label={(entry) => {
+                      const RADIAN = Math.PI / 180;
+                      const { cx, cy, midAngle, outerRadius, percentage } = entry;
+                      const radius = outerRadius + 30;
+                      const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                      const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+                      return (
+                        <text
+                          x={x}
+                          y={y}
+                          fill="white"
+                          textAnchor={x > cx ? 'start' : 'end'}
+                          dominantBaseline="central"
+                          style={{
+                            fontSize: '14px',
+                            fontWeight: 'bold',
+                            filter: 'drop-shadow(2px 2px 4px rgba(0,0,0,0.8))'
+                          }}
+                        >
+                          {`${percentage}%`}
+                        </text>
+                      );
+                    }}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
@@ -245,7 +268,14 @@ const StudyStats = ({ userId }) => {
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px' }}
+                    contentStyle={{ 
+                      backgroundColor: '#1f2937', 
+                      border: '1px solid #374151', 
+                      borderRadius: '8px',
+                      color: 'white'
+                    }}
+                    itemStyle={{ color: 'white' }}
+                    labelStyle={{ color: 'white' }}
                   />
                 </PieChart>
               </ResponsiveContainer>

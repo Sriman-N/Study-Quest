@@ -1,35 +1,48 @@
 const express = require('express');
 const router = express.Router();
 const Character = require('../models/Character');
+const auth = require('../middleware/auth');
+
+// Get character for logged-in user
+router.get('/', auth, async (req, res) => {
+  try {
+    const character = await Character.findOne({ userId: req.userId });
+    
+    if (!character) {
+      return res.status(404).json({ message: 'Character not found' });
+    }
+    
+    res.json(character);
+  } catch (error) {
+    console.error('Get character error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // Create character
-router.post('/', async (req, res) => {
+router.post('/', auth, async (req, res) => {
   try {
-    const { userId, name, avatar } = req.body;
+    const { name, avatar } = req.body;
 
     // Check if user already has a character
-    const existingCharacter = await Character.findOne({ userId });
+    const existingCharacter = await Character.findOne({ userId: req.userId });
     if (existingCharacter) {
       return res.status(400).json({ message: 'Character already exists' });
     }
 
-    // Create new character
+    // Create new character using userId from auth middleware
     const character = new Character({
-      userId,
+      userId: req.userId,  // Get from JWT token, not request body
       name,
-      avatar: avatar || 'warrior'
+      avatar
     });
 
     await character.save();
 
-    res.status(201).json({
-      message: 'Character created successfully',
-      character
-    });
-
+    res.status(201).json(character);
   } catch (error) {
     console.error('Create character error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
 
@@ -41,7 +54,6 @@ router.get('/user/:userId', async (req, res) => {
     if (!character) {
       return res.status(404).json({ message: 'Character not found' });
     }
-
     res.json(character);
   } catch (error) {
     console.error('Get character error:', error);
@@ -59,11 +71,9 @@ router.put('/:id', async (req, res) => {
       { name, avatar },
       { new: true }  // Return updated document
     );
-
     if (!character) {
       return res.status(404).json({ message: 'Character not found' });
     }
-
     res.json(character);
   } catch (error) {
     console.error('Update character error:', error);

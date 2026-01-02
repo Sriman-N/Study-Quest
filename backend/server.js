@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const dailyChallengesRouter = require('./routes/dailyChallenges');
 const studyMaterialsRouter = require('./routes/studyMaterials');
+const shopRouter = require('./routes/shop')
 
 dotenv.config();
 
@@ -34,6 +35,8 @@ app.use('/api/achievements', require('./routes/achievements'));
 app.use('/api/daily-challenges', dailyChallengesRouter);
 
 app.use('/api/study-materials', studyMaterialsRouter);
+
+app.use('/api/shop', shopRouter);
 
 const PORT = process.env.PORT || 5000;
 

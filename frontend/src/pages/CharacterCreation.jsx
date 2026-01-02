@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import axios from 'axios';
 
 const CharacterCreation = () => {
@@ -8,7 +7,6 @@ const CharacterCreation = () => {
   const [selectedAvatar, setSelectedAvatar] = useState('warrior');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const avatars = [
@@ -19,37 +17,39 @@ const CharacterCreation = () => {
   ];
 
   const handleCreate = async () => {
-  if (!characterName.trim()) {
-    setError('Please enter a character name');
-    return;
-  }
+    if (!characterName.trim()) {
+      setError('Please enter a character name');
+      return;
+    }
 
-  if (characterName.length < 3) {
-    setError('Character name must be at least 3 characters');
-    return;
-  }
+    if (characterName.length < 3) {
+      setError('Character name must be at least 3 characters');
+      return;
+    }
 
-  setError('');
-  setLoading(true);
+    setError('');
+    setLoading(true);
 
-  try {    
-    await axios.post('/api/characters', {
-      userId: user.id, 
-      name: characterName,
-      avatar: selectedAvatar
-    });
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post('http://localhost:5000/api/characters', {
+        name: characterName,
+        avatar: selectedAvatar
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    navigate('/dashboard');
-  } catch (err) {
-    console.error('Create character error:', err);
-    setError(err.response?.data?.message || 'Failed to create character');
-  } finally {
-    setLoading(false);
-  }
-};
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Create character error:', err);
+      setError(err.response?.data?.message || 'Failed to create character');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4">
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-purple-600 to-blue-600">
       <div className="max-w-2xl w-full bg-white/10 backdrop-blur-lg p-8 rounded-2xl shadow-2xl">
         <div className="text-center mb-8">
           <h2 className="text-4xl font-bold text-white mb-2">
@@ -91,6 +91,7 @@ const CharacterCreation = () => {
               {avatars.map((avatar) => (
                 <button
                   key={avatar.id}
+                  type="button"
                   onClick={() => setSelectedAvatar(avatar.id)}
                   className={`p-6 rounded-lg transition-all transform hover:scale-105 ${
                     selectedAvatar === avatar.id

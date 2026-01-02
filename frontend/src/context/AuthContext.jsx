@@ -1,9 +1,8 @@
 import { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
 
-const AuthContext = createContext();
-
-export { AuthContext };
+/* eslint-disable react-refresh/only-export-components */
+export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -25,11 +24,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (email, password) => {
-    const response = await axios.post('/api/auth/login', { email, password });
+    const response = await axios.post('http://localhost:5000/api/auth/login', { 
+      email, 
+      password 
+    });
     const { token, user } = response.data;
     
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));  // Save user data
+    localStorage.setItem('user', JSON.stringify(user));
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(user);
     
@@ -37,11 +39,15 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (username, email, password) => {
-    const response = await axios.post('/api/auth/register', { username, email, password });
+    const response = await axios.post('http://localhost:5000/api/auth/register', { 
+      username, 
+      email, 
+      password 
+    });
     const { token, user } = response.data;
     
     localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));  // Save user data
+    localStorage.setItem('user', JSON.stringify(user));
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     setUser(user);
     
@@ -50,7 +56,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem('token');
-    localStorage.removeItem('user');  // Remove user data
+    localStorage.removeItem('user');
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
   };
