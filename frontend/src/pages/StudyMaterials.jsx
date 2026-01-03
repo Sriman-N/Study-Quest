@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import StudyMaterialUpload from '../components/StudyMaterialUpload';
@@ -7,14 +7,19 @@ import QuizChallenge from '../components/QuizChallenge';
 import { BookOpen, ArrowLeft } from 'lucide-react';
 
 const StudyMaterials = () => {
-  const [materials, setMaterials] = useState([]);
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [difficulty, setDifficulty] = useState('medium');
   const navigate = useNavigate();
+  
+  // Create a ref to access StudyMaterialsList methods
+  const materialsListRef = useRef(null);
 
-  const handleUploadSuccess = (newMaterial) => {
-    setMaterials([newMaterial, ...materials]);
+  const handleUploadSuccess = () => {
+    // Trigger refresh of materials list
+    if (materialsListRef.current) {
+      materialsListRef.current.refreshMaterials();
+    }
   };
 
   const handleGenerateQuiz = async (selectedMaterialIds) => {
@@ -42,13 +47,13 @@ const StudyMaterials = () => {
     }
   };
 
-    const handleQuizComplete = (results) => {
+  const handleQuizComplete = (results) => {
     // Show completion, then redirect back
     console.log('Quiz completed with results:', results);
     setTimeout(() => {
-        setActiveQuiz(null);
+      setActiveQuiz(null);
     }, 5000);
-    };
+  };
 
   if (activeQuiz) {
     return (
@@ -120,7 +125,10 @@ const StudyMaterials = () => {
           </div>
         </div>
 
-        <StudyMaterialsList onGenerateQuiz={handleGenerateQuiz} />
+        <StudyMaterialsList 
+          ref={materialsListRef}
+          onGenerateQuiz={handleGenerateQuiz} 
+        />
       </div>
     </div>
   );

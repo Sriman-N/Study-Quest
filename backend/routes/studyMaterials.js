@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
-const pdfParse = require('pdf-parse');
+const PDFParser = require('pdf2json'); 
 const auth = require('../middleware/auth');
 const StudyMaterial = require('../models/StudyMaterial');
 
@@ -36,6 +36,24 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
+// Helper function to extract text from PDF
+async function extractTextFromPDF(filepath) {
+  return new Promise((resolve, reject) => {
+    const pdfParser = new PDFParser();
+    
+    pdfParser.on('pdfParser_dataError', (errData) => {
+      reject(errData.parserError);
+    });
+    
+    pdfParser.on('pdfParser_dataReady', () => {
+      const text = pdfParser.getRawTextContent();
+      resolve(text);
+    });
+    
+    pdfParser.loadPDF(filepath);
+  });
+}
+
 // Upload study material
 router.post('/upload', auth, upload.single('pdf'), async (req, res) => {
   try {
@@ -44,11 +62,9 @@ router.post('/upload', auth, upload.single('pdf'), async (req, res) => {
     }
 
     const { title, subject } = req.body;
-
-    // Extract text from PDF
-    const dataBuffer = await fs.readFile(req.file.path);
-    const pdfData = await pdfParse(dataBuffer);
-    const extractedText = pdfData.text;
+    
+    // Extract text from PDF using pdf2json
+    const extractedText = await extractTextFromPDF(req.file.path);
 
     const material = new StudyMaterial({
       userId: req.userId,
@@ -72,7 +88,10 @@ router.post('/upload', auth, upload.single('pdf'), async (req, res) => {
     });
   } catch (error) {
     console.error('Upload error:', error);
-    res.status(500).json({ message: 'Failed to upload study material' });
+    res.status(500).json({ 
+      message: 'Failed to upload study material', 
+      error: error.message 
+    });
   }
 });
 
@@ -82,7 +101,7 @@ router.get('/', auth, async (req, res) => {
     const materials = await StudyMaterial.find({ userId: req.userId })
       .select('-extractedText') // Don't send full text
       .sort({ uploadedAt: -1 });
-
+    
     res.json(materials);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -96,7 +115,7 @@ router.get('/subject/:subject', auth, async (req, res) => {
       userId: req.userId,
       subject: req.params.subject
     }).select('-extractedText');
-
+    
     res.json(materials);
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
@@ -117,7 +136,7 @@ router.delete('/:id', auth, async (req, res) => {
 
     // Delete file from filesystem
     await fs.unlink(material.filepath).catch(() => {});
-
+    
     res.json({ message: 'Study material deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
