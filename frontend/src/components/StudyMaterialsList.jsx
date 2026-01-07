@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { FileText, Trash2, Sparkles } from 'lucide-react';
 import axios from 'axios';
 
-const StudyMaterialsList = ({ onGenerateQuiz }) => {
+const StudyMaterialsList = forwardRef(({ onGenerateQuiz, onSelectionChange }, ref) => {
   const [materials, setMaterials] = useState([]);
   const [selectedMaterials, setSelectedMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,8 +11,16 @@ const StudyMaterialsList = ({ onGenerateQuiz }) => {
     fetchMaterials();
   }, []);
 
+  // Notify parent when selection changes
+  useEffect(() => {
+    if (onSelectionChange) {
+      onSelectionChange(selectedMaterials);
+    }
+  }, [selectedMaterials, onSelectionChange]);
+
   const fetchMaterials = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.get('http://localhost:5000/api/study-materials', {
         headers: { Authorization: `Bearer ${token}` }
@@ -25,6 +33,11 @@ const StudyMaterialsList = ({ onGenerateQuiz }) => {
     }
   };
 
+  // Expose the refresh method to parent component
+  useImperativeHandle(ref, () => ({
+    refreshMaterials: fetchMaterials
+  }));
+
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this material?')) return;
 
@@ -34,7 +47,7 @@ const StudyMaterialsList = ({ onGenerateQuiz }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMaterials(materials.filter(m => m._id !== id));
-      setSelectedMaterials(selectedMaterials.filter(id => id !== id));
+      setSelectedMaterials(selectedMaterials.filter(materialId => materialId !== id));
     } catch (error) {
       console.error('Error deleting material:', error);
     }
@@ -55,7 +68,14 @@ const StudyMaterialsList = ({ onGenerateQuiz }) => {
   };
 
   if (loading) {
-    return <div className="text-center py-8">Loading materials...</div>;
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="text-center py-8">
+          <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+          <p className="text-gray-600">Loading materials...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -64,6 +84,11 @@ const StudyMaterialsList = ({ onGenerateQuiz }) => {
         <h2 className="text-xl font-bold flex items-center gap-2">
           <FileText className="w-6 h-6 text-purple-500" />
           Your Study Materials ({materials.length})
+          {selectedMaterials.length > 0 && (
+            <span className="text-sm font-normal text-purple-600">
+              • {selectedMaterials.length} selected
+            </span>
+          )}
         </h2>
         
         {selectedMaterials.length > 0 && (
@@ -79,7 +104,8 @@ const StudyMaterialsList = ({ onGenerateQuiz }) => {
 
       {materials.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
-          No study materials uploaded yet. Upload your first PDF to get started!
+          <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+          <p>No study materials uploaded yet. Upload your first PDF to get started!</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -126,6 +152,8 @@ const StudyMaterialsList = ({ onGenerateQuiz }) => {
       )}
     </div>
   );
-};
+});
+
+StudyMaterialsList.displayName = 'StudyMaterialsList';
 
 export default StudyMaterialsList;

@@ -44,24 +44,41 @@ router.post('/generate-quiz', auth, async (req, res) => {
     const combinedText = materials.map(m => m.extractedText).join('\n\n');
     const subject = materials[0].subject;
 
+    console.log('=== QUIZ GENERATION DEBUG ===');
+    console.log('Subject:', subject);
+    console.log('Number of materials:', materials.length);
+    console.log('Combined text length:', combinedText.length);
+    console.log('First 500 chars:', combinedText.substring(0, 500));
+    console.log('===========================');
+
     // Generate quiz using OpenAI
     const completion = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4-turbo-preview",
       messages: [{
         role: "user",
-        content: `Based on the following lecture material, create a ${difficulty} difficulty quiz with 5 multiple-choice questions. Each question should have 4 options and test understanding of key concepts.
+        content: `You are creating a ${difficulty} difficulty quiz based on the study material provided below.
+
+Subject: ${subject}
 
 Study Material:
-${combinedText.substring(0, 8000)} 
+${combinedText.substring(0, 15000)}
 
-Please respond ONLY with valid JSON in this exact format (no markdown, no extra text):
+INSTRUCTIONS:
+- Create EXACTLY 5 multiple-choice questions based on the topics and concepts covered in the material above
+- Questions should test understanding of the SPECIFIC topics mentioned in the material
+- Each question must have exactly 4 options
+- Use your knowledge to create clear, well-written questions and comprehensive explanations
+- Explanations should help the student understand WHY the answer is correct, using additional context beyond just what's in the material
+- Make sure questions are appropriate for ${difficulty} difficulty level
+
+Respond with ONLY valid JSON in this format (no markdown, no code blocks, no extra text):
 {
   "questions": [
     {
       "question": "Question text here?",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": 0,
-      "explanation": "Brief explanation of the correct answer"
+      "explanation": "Comprehensive explanation of why this answer is correct, with additional context to help learning"
     }
   ]
 }
@@ -69,13 +86,26 @@ Please respond ONLY with valid JSON in this exact format (no markdown, no extra 
 The correctAnswer should be the index (0-3) of the correct option.`
       }],
       temperature: 0.7,
+      max_tokens: 2500
     });
 
     const responseText = completion.choices[0].message.content;
     
+    console.log('=== AI RESPONSE ===');
+    console.log('Raw response:', responseText.substring(0, 500));
+    console.log('==================');
+    
     // Remove markdown code blocks if present
     const cleanedResponse = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const quizData = JSON.parse(cleanedResponse);
+
+    // Validate that we got questions
+    if (!quizData.questions || quizData.questions.length === 0) {
+      throw new Error('No questions generated');
+    }
+
+    console.log('Generated questions:', quizData.questions.length);
+    console.log('First question:', quizData.questions[0].question);
 
     // Calculate rewards based on difficulty
     const rewards = {

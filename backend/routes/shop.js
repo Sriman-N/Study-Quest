@@ -1,15 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const Character = require('../models/Character');
+const ShopItem = require('../models/ShopItem');
 const Inventory = require('../models/Inventory');
-const SHOP_ITEMS = require('../config/shopItems');
+const Character = require('../models/Character');
 
 // Get all shop items
 router.get('/items', auth, async (req, res) => {
   try {
-    res.json(SHOP_ITEMS);
+    const character = await Character.findOne({ userId: req.userId });
+    const items = await ShopItem.find({ available: true });
+    
+    // Filter items by level requirement
+    const availableItems = items.filter(item => item.levelRequired <= character.level);
+    
+    res.json(availableItems);
   } catch (error) {
+    console.error('Get shop items error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -20,139 +27,144 @@ router.get('/inventory', auth, async (req, res) => {
     let inventory = await Inventory.findOne({ userId: req.userId });
     
     if (!inventory) {
-      inventory = new Inventory({
-        userId: req.userId,
-        items: [],
-        equipped: {}
-      });
+      inventory = new Inventory({ userId: req.userId, items: [], equipped: {} });
       await inventory.save();
     }
     
-    res.json(inventory);
+    // Populate item details
+    const itemIds = inventory.items.map(item => item.itemId);
+    const itemDetails = await ShopItem.find({ itemId: { $in: itemIds } });
+    
+    const inventoryWithDetails = {
+      ...inventory.toObject(),
+      itemDetails: itemDetails
+    };
+    
+    res.json(inventoryWithDetails);
   } catch (error) {
+    console.error('Get inventory error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
 // Purchase item
-router.post('/purchase', auth, async (req, res) => {
+router.post('/purchase/:itemId', auth, async (req, res) => {
   try {
-    const { itemId, itemType } = req.body;
+    const { itemId } = req.params;
     
-    // Find the item in shop
-    let item = null;
-    let category = '';
-    
-    if (SHOP_ITEMS.avatars.find(i => i.id === itemId)) {
-      item = SHOP_ITEMS.avatars.find(i => i.id === itemId);
-      category = 'avatar';
-    } else if (SHOP_ITEMS.powerUps.find(i => i.id === itemId)) {
-      item = SHOP_ITEMS.powerUps.find(i => i.id === itemId);
-      category = 'power_up';
-    } else if (SHOP_ITEMS.backgrounds.find(i => i.id === itemId)) {
-      item = SHOP_ITEMS.backgrounds.find(i => i.id === itemId);
-      category = 'background';
-    } else if (SHOP_ITEMS.titles.find(i => i.id === itemId)) {
-      item = SHOP_ITEMS.titles.find(i => i.id === itemId);
-      category = 'cosmetic';
-    }
-    
+    // Get item details
+    const item = await ShopItem.findOne({ itemId, available: true });
     if (!item) {
       return res.status(404).json({ message: 'Item not found' });
     }
     
-    // Check if user has enough gold
+    // Get character
     const character = await Character.findOne({ userId: req.userId });
     if (!character) {
       return res.status(404).json({ message: 'Character not found' });
     }
     
+    // Check level requirement
+    if (character.level < item.levelRequired) {
+      return res.status(400).json({ 
+        message: `You need to be level ${item.levelRequired} to purchase this item` 
+      });
+    }
+    
+    // Check if user has enough gold
     if (character.gold < item.price) {
       return res.status(400).json({ message: 'Not enough gold' });
     }
     
-    // Check if user already owns this item
+    // Get or create inventory
     let inventory = await Inventory.findOne({ userId: req.userId });
     if (!inventory) {
-      inventory = new Inventory({
-        userId: req.userId,
-        items: [],
-        equipped: {}
-      });
+      inventory = new Inventory({ userId: req.userId, items: [], equipped: {} });
     }
     
-    const alreadyOwns = inventory.items.some(i => i.itemId === itemId);
-    if (alreadyOwns) {
+    // Check if already owned
+    const alreadyOwned = inventory.items.some(i => i.itemId === itemId);
+    if (alreadyOwned) {
       return res.status(400).json({ message: 'You already own this item' });
     }
     
     // Deduct gold
-    character.spendGold(item.price);
+    character.gold -= item.price;
     await character.save();
     
     // Add item to inventory
-    inventory.items.push({
-      itemId: item.id,
-      name: item.name,
-      type: category,
-      rarity: item.rarity
-    });
+    inventory.addItem(itemId);
     await inventory.save();
     
     res.json({
-      message: 'Purchase successful',
-      item,
+      message: 'Item purchased successfully',
+      item: item,
       remainingGold: character.gold,
-      inventory
+      inventory: inventory
     });
   } catch (error) {
     console.error('Purchase error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Failed to purchase item' });
   }
 });
 
 // Equip item
-router.post('/equip', auth, async (req, res) => {
+router.post('/equip/:itemId', auth, async (req, res) => {
   try {
-    const { itemId, itemType } = req.body;
+    const { itemId } = req.params;
+    
+    // Get item details
+    const item = await ShopItem.findOne({ itemId });
+    if (!item) {
+      return res.status(404).json({ message: 'Item not found' });
+    }
+    
+    // Get inventory
+    const inventory = await Inventory.findOne({ userId: req.userId });
+    if (!inventory) {
+      return res.status(404).json({ message: 'Inventory not found' });
+    }
+    
+    // Check if user owns the item
+    const ownsItem = inventory.items.some(i => i.itemId === itemId);
+    if (!ownsItem) {
+      return res.status(400).json({ message: 'You do not own this item' });
+    }
+    
+    // Equip item
+    inventory.equipItem(itemId, item.type);
+    await inventory.save();
+    
+    res.json({
+      message: 'Item equipped successfully',
+      equipped: inventory.equipped
+    });
+  } catch (error) {
+    console.error('Equip error:', error);
+    res.status(500).json({ message: 'Failed to equip item' });
+  }
+});
+
+// Unequip item
+router.post('/unequip/:type', auth, async (req, res) => {
+  try {
+    const { type } = req.params;
     
     const inventory = await Inventory.findOne({ userId: req.userId });
     if (!inventory) {
       return res.status(404).json({ message: 'Inventory not found' });
     }
     
-    const item = inventory.items.find(i => i.itemId === itemId);
-    if (!item) {
-      return res.status(404).json({ message: 'Item not found in inventory' });
-    }
-    
-    // Equip the item based on type
-    if (item.type === 'avatar') {
-      inventory.equipped.avatar = itemId;
-      
-      // Also update character avatar
-      const character = await Character.findOne({ userId: req.userId });
-      if (character) {
-        character.avatar = itemId;
-        await character.save();
-      }
-    } else if (item.type === 'background') {
-      inventory.equipped.background = itemId;
-    } else if (item.type === 'cosmetic') {
-      inventory.equipped.title = itemId;
-    }
-    
-    // Update equipped timestamp
-    item.equippedAt = new Date();
+    inventory.unequipItem(type);
     await inventory.save();
     
     res.json({
-      message: 'Item equipped successfully',
-      inventory
+      message: 'Item unequipped successfully',
+      equipped: inventory.equipped
     });
   } catch (error) {
-    console.error('Equip error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Unequip error:', error);
+    res.status(500).json({ message: 'Failed to unequip item' });
   }
 });
 

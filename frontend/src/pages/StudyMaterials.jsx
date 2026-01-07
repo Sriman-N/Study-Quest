@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import StudyMaterialUpload from '../components/StudyMaterialUpload';
 import StudyMaterialsList from '../components/StudyMaterialsList';
+import AIStudyAssistant from '../components/AIStudyAssistant';
 import QuizChallenge from '../components/QuizChallenge';
 import { BookOpen, ArrowLeft } from 'lucide-react';
 
@@ -10,13 +11,12 @@ const StudyMaterials = () => {
   const [activeQuiz, setActiveQuiz] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [difficulty, setDifficulty] = useState('medium');
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState([]);
   const navigate = useNavigate();
   
-  // Create a ref to access StudyMaterialsList methods
   const materialsListRef = useRef(null);
 
   const handleUploadSuccess = () => {
-    // Trigger refresh of materials list
     if (materialsListRef.current) {
       materialsListRef.current.refreshMaterials();
     }
@@ -48,11 +48,14 @@ const StudyMaterials = () => {
   };
 
   const handleQuizComplete = (results) => {
-    // Show completion, then redirect back
     console.log('Quiz completed with results:', results);
     setTimeout(() => {
       setActiveQuiz(null);
     }, 5000);
+  };
+
+  const handleMaterialSelectionChange = (selectedIds) => {
+    setSelectedMaterialIds(selectedIds);
   };
 
   if (activeQuiz) {
@@ -74,11 +77,11 @@ const StudyMaterials = () => {
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <BookOpen className="w-8 h-8 text-purple-600" />
-            <h1 className="text-3xl font-bold text-gray-800">Study Materials</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Study Materials & AI Assistant</h1>
           </div>
           <button
             onClick={() => navigate('/dashboard')}
@@ -97,38 +100,49 @@ const StudyMaterials = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <StudyMaterialUpload onUploadSuccess={handleUploadSuccess} />
-          
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold mb-4">Quiz Settings</h2>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Difficulty Level
-              </label>
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="easy">Easy - 30 XP, 5 Gold</option>
-                <option value="medium">Medium - 50 XP, 10 Gold</option>
-                <option value="hard">Hard - 80 XP, 20 Gold</option>
-              </select>
-            </div>
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800">
-                <strong>How it works:</strong> Upload your lecture PDFs, select the materials you want to study, 
-                and click "Generate Quiz" to create an AI-powered quiz based on your materials!
-              </p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div className="lg:col-span-1">
+            <StudyMaterialUpload onUploadSuccess={handleUploadSuccess} />
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-md p-6 h-full">
+              <h2 className="text-xl font-bold mb-4">Quiz Settings</h2>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Difficulty Level
+                </label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="easy">Easy - 30 XP, 5 Gold</option>
+                  <option value="medium">Medium - 50 XP, 10 Gold</option>
+                  <option value="hard">Hard - 80 XP, 20 Gold</option>
+                </select>
+              </div>
+              <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>How it works:</strong> Upload your lecture PDFs, select the materials you want to study, 
+                  and use the AI tools below to generate quizzes, get explanations, or create study guides!
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        <StudyMaterialsList 
-          ref={materialsListRef}
-          onGenerateQuiz={handleGenerateQuiz} 
-        />
+        <div className="mb-6">
+          <StudyMaterialsList 
+            ref={materialsListRef}
+            onGenerateQuiz={handleGenerateQuiz}
+            onSelectionChange={handleMaterialSelectionChange}
+          />
+        </div>
+
+        <div>
+          <AIStudyAssistant selectedMaterials={selectedMaterialIds} />
+        </div>
       </div>
     </div>
   );
