@@ -12,6 +12,11 @@ const Dashboard = () => {
   const [character, setCharacter] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [equippedItems, setEquippedItems] = useState({
+    avatar: null,
+    background: null,
+    title: null
+  });
 
   useEffect(() => {
     fetchUserAndCharacter();
@@ -19,34 +24,76 @@ const Dashboard = () => {
   }, []);
 
   const fetchUserAndCharacter = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        navigate('/login');
-        return;
-      }
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
 
-      // Fetch character
-      const response = await axios.get('http://localhost:5000/api/characters', {
+    // Fetch character
+    const characterResponse = await axios.get('http://localhost:5000/api/characters', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    setCharacter(characterResponse.data);
+    
+    // Set a basic user object from token
+    setUser({ id: characterResponse.data.userId });
+
+    // Fetch equipped items
+    try {
+      const inventoryResponse = await axios.get('http://localhost:5000/api/shop/inventory', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      setCharacter(response.data);
-      
-      // Set a basic user object from token (you can decode JWT if needed)
-      setUser({ id: response.data.userId });
-      
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching character:', error);
-      if (error.response?.status === 401) {
-        navigate('/login');
-      } else if (error.response?.status === 404) {
-        navigate('/create-character');
+
+      console.log('Inventory response:', inventoryResponse.data); // Debug log
+
+      // Build equipped items from inventory data
+      const equipped = {
+        avatar: null,
+        background: null,
+        title: null
+      };
+
+      // Match equipped itemIds with itemDetails
+      if (inventoryResponse.data.equipped && inventoryResponse.data.itemDetails) {
+        const { equipped: equippedIds, itemDetails } = inventoryResponse.data;
+
+        // Find background
+        if (equippedIds.background) {
+          equipped.background = itemDetails.find(item => item.itemId === equippedIds.background);
+        }
+
+        // Find avatar
+        if (equippedIds.avatar) {
+          equipped.avatar = itemDetails.find(item => item.itemId === equippedIds.avatar);
+        }
+
+        // Find title
+        if (equippedIds.title) {
+          equipped.title = itemDetails.find(item => item.itemId === equippedIds.title);
+        }
       }
-      setLoading(false);
+
+      console.log('Parsed equipped items:', equipped); // Debug log
+      setEquippedItems(equipped);
+    } catch (invError) {
+      console.error('Error fetching inventory:', invError);
+      // Continue even if inventory fails
     }
-  };
+    
+    setLoading(false);
+  } catch (error) {
+    console.error('Error fetching character:', error);
+    if (error.response?.status === 401) {
+      navigate('/login');
+    } else if (error.response?.status === 404) {
+      navigate('/create-character');
+    }
+    setLoading(false);
+  }
+};
 
   const handleSessionComplete = () => {
     fetchUserAndCharacter();
@@ -78,7 +125,6 @@ const Dashboard = () => {
     mage: '🧙',
     scholar: '📚',
     ninja: '🥷',
-    // Add new avatars from shop
     dragon: '🐉',
     wizard: '🧙‍♂️',
     robot: '🤖',
@@ -87,12 +133,59 @@ const Dashboard = () => {
     pirate: '🏴‍☠️'
   };
 
+  // Use equipped avatar if available, otherwise default
+  const displayAvatar = equippedItems.avatar?.image || avatarEmojis[character.avatar] || '⚔️';
+
   const xpForNextLevel = Math.floor(100 * Math.pow(1.5, character.level - 1));
   const xpPercentage = (character.xp / xpForNextLevel) * 100;
 
+  // Background style - create a decorative background with the emoji
+  const getBackgroundStyle = () => {
+    if (equippedItems.background) {
+      return {
+        background: `linear-gradient(135deg, rgba(139, 92, 246, 0.95), rgba(59, 130, 246, 0.95), rgba(99, 102, 241, 0.95))`,
+        position: 'relative'
+      };
+    }
+    return {};
+  };
+
   return (
-    <div className="min-h-screen p-8 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700">
-      <div className="max-w-7xl mx-auto">
+    <div 
+      className="min-h-screen p-8 bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700"
+      style={getBackgroundStyle()}
+    >
+      {/* Background emoji decoration if equipped */}
+      {equippedItems.background && (
+        <div 
+          className="fixed inset-0 pointer-events-none overflow-hidden opacity-60"
+          style={{ zIndex: 0 }}
+        >
+          {/* Scattered large emojis */}
+          <div className="absolute top-10 left-10 text-[18rem] filter drop-shadow-2xl">
+            {equippedItems.background.image}
+          </div>
+          <div className="absolute top-20 right-20 text-[18rem] filter drop-shadow-2xl">
+            {equippedItems.background.image}
+          </div>
+          <div className="absolute bottom-20 left-1/4 text-[18rem] filter drop-shadow-2xl">
+            {equippedItems.background.image}
+          </div>
+          <div className="absolute bottom-32 right-1/4 text-[18rem] filter drop-shadow-2xl">
+            {equippedItems.background.image}
+          </div>
+          <div className="absolute top-1/3 left-1/2 text-[18rem] filter drop-shadow-2xl">
+            {equippedItems.background.image}
+          </div>
+          
+          {/* Giant center emoji */}
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[35rem] opacity-40 filter drop-shadow-2xl">
+            {equippedItems.background.image}
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto relative" style={{ zIndex: 1 }}>
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold text-white">Study Quest</h1>
@@ -117,14 +210,24 @@ const Dashboard = () => {
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 mb-6 border border-white/20">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-4">
-              <div className="text-7xl">{avatarEmojis[character.avatar] || '⚔️'}</div>
+              <div className="text-7xl">{displayAvatar}</div>
               <div>
                 <h2 className="text-4xl font-bold text-white mb-1">
                   {character.name}
+                  {equippedItems.title && (
+                    <span className="ml-3 text-2xl text-yellow-300">
+                      {equippedItems.title.image}
+                    </span>
+                  )}
                 </h2>
                 <p className="text-gray-300 text-lg">
                   Level {character.level} {character.avatar.charAt(0).toUpperCase() + character.avatar.slice(1)}
                 </p>
+                {equippedItems.title && (
+                  <p className="text-yellow-300 text-sm mt-1">
+                    "{equippedItems.title.name}"
+                  </p>
+                )}
               </div>
             </div>
             <div className="text-right space-y-2">
@@ -215,9 +318,9 @@ const Dashboard = () => {
               <div className="text-white">
                 <div className="text-sm text-purple-200">Equipped Items</div>
                 <div className="flex gap-2 mt-2">
-                  <span className="text-2xl">⚔️</span>
-                  <span className="text-2xl">🛡️</span>
-                  <span className="text-2xl">👑</span>
+                  <span className="text-2xl">{equippedItems.avatar?.image || '❌'}</span>
+                  <span className="text-2xl">{equippedItems.background?.image || '❌'}</span>
+                  <span className="text-2xl">{equippedItems.title?.image || '❌'}</span>
                 </div>
               </div>
               <div className="bg-white text-purple-600 px-6 py-2 rounded-lg font-bold text-lg">

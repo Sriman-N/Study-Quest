@@ -44,13 +44,6 @@ router.post('/generate-quiz', auth, async (req, res) => {
     const combinedText = materials.map(m => m.extractedText).join('\n\n');
     const subject = materials[0].subject;
 
-    console.log('=== QUIZ GENERATION DEBUG ===');
-    console.log('Subject:', subject);
-    console.log('Number of materials:', materials.length);
-    console.log('Combined text length:', combinedText.length);
-    console.log('First 500 chars:', combinedText.substring(0, 500));
-    console.log('===========================');
-
     // Generate quiz using OpenAI
     const completion = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
@@ -91,10 +84,6 @@ The correctAnswer should be the index (0-3) of the correct option.`
 
     const responseText = completion.choices[0].message.content;
     
-    console.log('=== AI RESPONSE ===');
-    console.log('Raw response:', responseText.substring(0, 500));
-    console.log('==================');
-    
     // Remove markdown code blocks if present
     const cleanedResponse = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const quizData = JSON.parse(cleanedResponse);
@@ -103,9 +92,6 @@ The correctAnswer should be the index (0-3) of the correct option.`
     if (!quizData.questions || quizData.questions.length === 0) {
       throw new Error('No questions generated');
     }
-
-    console.log('Generated questions:', quizData.questions.length);
-    console.log('First question:', quizData.questions[0].question);
 
     // Calculate rewards based on difficulty
     const rewards = {

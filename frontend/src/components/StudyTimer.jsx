@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import LevelUpModal from './LevelUpModal';
@@ -20,23 +19,23 @@ const StudyTimer = ({ user, character, onSessionComplete }) => {
   const [showAchievementModal, setShowAchievementModal] = useState(false);
   const [unlockedAchievements, setUnlockedAchievements] = useState([]);
 
-useEffect(() => {
-  if (isActive && timeLeft > 0) {
-    intervalRef.current = setInterval(() => {
-      setTimeLeft(time => {
-        if (time <= 1) {
-          // Timer is about to hit 0
-          setIsActive(false);
-          setTimerComplete(true);
-          return 0;
-        }
-        return time - 1;
-      });
-    }, 1000);
-  }
-  
-  return () => clearInterval(intervalRef.current);
-}, [isActive, timeLeft]);
+  useEffect(() => {
+    if (isActive && timeLeft > 0) {
+      intervalRef.current = setInterval(() => {
+        setTimeLeft(time => {
+          if (time <= 1) {
+            setIsActive(false);
+            setTimerComplete(true);
+            return 0;
+          }
+          return time - 1;
+        });
+      }, 1000);
+    }
+    
+    return () => clearInterval(intervalRef.current);
+  }, [isActive, timeLeft]);
+
   useEffect(() => {
     if (!timerComplete) return;
 
@@ -86,6 +85,35 @@ useEffect(() => {
     handleCompletion();
   }, [timerComplete, isBreak, user.id, character._id, subject, studyDuration, breakDuration, onSessionComplete]);
 
+  // NEW: Automatically reset timer when duration changes
+  const handleStudyDurationChange = (newDuration) => {
+    setStudyDuration(newDuration);
+    if (!isBreak) {
+      setTimeLeft(newDuration * 60);
+      setIsActive(false);
+    }
+  };
+
+  const handleBreakDurationChange = (newDuration) => {
+    setBreakDuration(newDuration);
+    if (isBreak) {
+      setTimeLeft(newDuration * 60);
+      setIsActive(false);
+    }
+  };
+
+  // NEW: Handle preset buttons with automatic reset
+  const handlePreset = (study, breakTime) => {
+    setStudyDuration(study);
+    setBreakDuration(breakTime);
+    if (!isBreak) {
+      setTimeLeft(study * 60);
+    } else {
+      setTimeLeft(breakTime * 60);
+    }
+    setIsActive(false);
+  };
+
   const startTimer = () => {
     if (!subject.trim() && !isBreak) {
       alert('Please enter what you\'re studying!');
@@ -109,9 +137,7 @@ useEffect(() => {
   };
 
   const applySettings = () => {
-    if (!isActive) {
-      setTimeLeft(studyDuration * 60);
-    }
+    // Timer is already updated automatically, just close settings
     setShowSettings(false);
   };
 
@@ -155,12 +181,12 @@ useEffect(() => {
                 <input
                   type="number"
                   value={studyDuration}
-                  onChange={(e) => setStudyDuration(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => handleStudyDurationChange(Math.max(1, Math.min(120, parseInt(e.target.value) || 1)))}
                   className="w-full px-4 py-2 rounded-lg bg-white/20 text-white text-center border border-gray-300/30 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   min="1"
                   max="120"
                 />
-                <p className="text-gray-400 text-xs mt-1">1-120 minutes</p>
+                <p className="text-gray-400 text-xs mt-1">1-120 minutes • Timer will reset</p>
               </div>
               
               <div>
@@ -168,31 +194,31 @@ useEffect(() => {
                 <input
                   type="number"
                   value={breakDuration}
-                  onChange={(e) => setBreakDuration(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))}
+                  onChange={(e) => handleBreakDurationChange(Math.max(1, Math.min(30, parseInt(e.target.value) || 1)))}
                   className="w-full px-4 py-2 rounded-lg bg-white/20 text-white text-center border border-gray-300/30 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   min="1"
                   max="30"
                 />
-                <p className="text-gray-400 text-xs mt-1">1-30 minutes</p>
+                <p className="text-gray-400 text-xs mt-1">1-30 minutes • Timer will reset</p>
               </div>
             </div>
 
             <div className="flex gap-2 mb-4">
               <button
-                onClick={() => { setStudyDuration(25); setBreakDuration(5); }}
-                className="flex-1 px-3 py-2 bg-green-600/30 hover:bg-green-600/50 text-white rounded text-sm border border-green-500/30"
+                onClick={() => handlePreset(25, 5)}
+                className="flex-1 px-3 py-2 bg-green-600/30 hover:bg-green-600/50 text-white rounded text-sm border border-green-500/30 transition-colors"
               >
                 Pomodoro (25/5)
               </button>
               <button
-                onClick={() => { setStudyDuration(50); setBreakDuration(10); }}
-                className="flex-1 px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-white rounded text-sm border border-blue-500/30"
+                onClick={() => handlePreset(50, 10)}
+                className="flex-1 px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-white rounded text-sm border border-blue-500/30 transition-colors"
               >
                 Long (50/10)
               </button>
               <button
-                onClick={() => { setStudyDuration(15); setBreakDuration(3); }}
-                className="flex-1 px-3 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-white rounded text-sm border border-purple-500/30"
+                onClick={() => handlePreset(15, 3)}
+                className="flex-1 px-3 py-2 bg-purple-600/30 hover:bg-purple-600/50 text-white rounded text-sm border border-purple-500/30 transition-colors"
               >
                 Short (15/3)
               </button>
@@ -200,9 +226,9 @@ useEffect(() => {
 
             <button
               onClick={applySettings}
-              className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold"
+              className="w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold transition-colors"
             >
-              Apply Settings
+              Close Settings
             </button>
           </div>
         )}
