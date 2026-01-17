@@ -5,7 +5,7 @@ const characterSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
-    unique: true  // Each user can only have one character
+    unique: true  
   },
   name: {
     type: String,
@@ -41,7 +41,7 @@ const characterSchema = new mongoose.Schema({
   },
   totalStudyTime: {
     type: Number,
-    default: 0  // in minutes
+    default: 0  
   },
   currentStreak: {
     type: Number,

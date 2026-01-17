@@ -37,5 +37,5 @@ app.use('/api/shop', shopRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`); // Fixed: use regular parentheses, not template literal
+  console.log(`🚀 Server running on port ${PORT}`); 
 });
